@@ -30,7 +30,7 @@ export default function ProjectList({ user }: { user: any }) {
   return (
     <ul className="space-y-4">
       {projects.map((project) => (
-        <li key={project.id} className="border p-4 rounded shadow">
+        <li key={project.id} className="border p-4 rounded shadow bg-white">
           <Link
             href={`/project/${project.id}`}
             className="block hover:underline"

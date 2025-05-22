@@ -7,13 +7,14 @@ export async function scrapeSites(queries: string[]) {
     const reddit = await searchReddit(query);
     console.log(`🟥 Reddit: found ${reddit.length} results`);
 
-    const twitter = await searchSerper(query, "twitter");
-    console.log(`🟦 Twitter: found ${twitter.length} results`);
+    // const twitter = await searchSerper(query, "twitter");
+    // console.log(`🟦 Twitter: found ${twitter.length} results`);
 
-    const quora = await searchSerper(query, "quora");
-    console.log(`🟫 Quora: found ${quora.length} results`);
+    // const quora = await searchSerper(query, "quora");
+    // console.log(`🟫 Quora: found ${quora.length} results`);
 
-    allResults.push(...reddit, ...twitter, ...quora);
+    // allResults.push(...reddit, ...twitter, ...quora);
+    allResults.push(...reddit); // Apenas resultados do Reddit por agora
   }
 
   console.log(`✅ Total combined results: ${allResults.length}`);
@@ -38,6 +39,7 @@ async function searchReddit(query: string) {
   }
 }
 
+/*
 // Serper API for Twitter or Quora
 async function searchSerper(query: string, platform: "twitter" | "quora") {
   try {
@@ -68,3 +70,4 @@ async function searchSerper(query: string, platform: "twitter" | "quora") {
     return [];
   }
 }
+*/

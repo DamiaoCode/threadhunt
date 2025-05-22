@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Topbar from "../components/Topbar";
 import supabase from "@/lib/supabase";
+import FloatingLogos from "@/components/FloatingLogos";
 
 export default function Hunt() {
   const [title, setTitle] = useState("");
@@ -34,7 +35,10 @@ export default function Hunt() {
     try {
       const res = await fetch("/api/generate-icps", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // 👈 necessário se usas Supabase Auth com cookies
         body: JSON.stringify({ title, description }),
       });
 
@@ -46,72 +50,78 @@ export default function Hunt() {
 
     setGenerating(false);
   };
-  const handleContinue = async () => {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
 
-    if (userError || !user) {
-      console.error("❌ Failed to get current user");
+  const handleContinue = async () => {
+    const sessionRes = await supabase.auth.getSession();
+
+    if (sessionRes.error || !sessionRes.data?.session?.user) {
+      console.error("❌ Failed to get current session");
       return;
     }
 
-    const { data, error } = await supabase
+    const sessionUser = sessionRes.data.session.user;
+
+    const { data: projectData, error: insertError } = await supabase
       .from("projects")
       .insert([
         {
           name: title,
           description,
-          user_id: user.id, // ← garantidamente o mesmo que auth.uid()
+          user_id: sessionUser.id,
           query_icp: selectedIcps,
         },
       ])
       .select()
       .single();
 
-    if (error) {
-      console.error("Erro ao guardar projeto:", error.message);
+    if (insertError || !projectData?.id) {
+      console.error("❌ Erro ao guardar projeto:", insertError?.message);
       return;
     }
 
-    // Trigger discovery pipeline
-    try {
-      await fetch("/api/process-discovery", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: data.id,
-          name: title,
-          description,
-          query_icp: selectedIcps,
-          user_id: user.id, // 👈 AQUI!
-        }),
+    const projectId = projectData.id;
+
+    // Redirecionar imediatamente
+    router.push(`/project/${projectId}`);
+
+    // Lança a descoberta em background (não bloqueia a navegação)
+    fetch("/api/process-discovery", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include", // usa os cookies da sessão
+      body: JSON.stringify({
+        id: projectId,
+        name: title,
+        description,
+        query_icp: selectedIcps,
+      }),
+    })
+      .then(() => {
+        console.log("✅ Discovery launched in background");
+      })
+      .catch((err) => {
+        console.error("❌ Discovery API failed", err);
       });
-      console.log("✅ Discovery task launched");
-    } catch (err) {
-      console.error("❌ Discovery API failed", err);
-    }
-
-    // Redirect
-    router.push(`/project/${data.id}`);
   };
-
-  if (loading) return <p>Loading...</p>;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Topbar userEmail={user?.email} plan="Free" />
+      <FloatingLogos />
+
+      <Topbar />
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
         <form
           onSubmit={handleSubmit}
-          className="w-full max-w-xl bg-white shadow-md rounded p-8 space-y-6 border"
+          className="w-full max-w-xl bg-white shadow-md rounded p-8 space-y-6 border relative z-20"
         >
-          <h1 className="text-2xl font-semibold text-center">
-            Describe Your Product
+          <h1 className="text-2xl font-semibold text-center transition-all duration-300">
+            {icps.length === 0
+              ? "Describe Your Product"
+              : "Describe Your Customer"}
           </h1>
 
-          {/* Only show title & description if ICPs are NOT generated */}
           {!icps.length && (
             <>
               <div>
@@ -160,12 +170,9 @@ export default function Hunt() {
             </>
           )}
 
-          {/* ICP Checkboxes + Manual Add */}
           {icps.length > 0 && (
             <div className="mt-6 space-y-4">
-              <p className="text-sm font-medium">
-                Suggested Ideal Customer Profiles:
-              </p>
+              <p className="text-sm font-medium">Suggestions:</p>
               {icps.map((profile, idx) => (
                 <label key={idx} className="block">
                   <input
@@ -181,16 +188,14 @@ export default function Hunt() {
                       );
                     }}
                   />
-
                   {profile}
                 </label>
               ))}
 
-              {/* Custom ICP Input */}
               <div className="flex items-center gap-2 mt-4">
                 <input
                   type="text"
-                  placeholder="Add custom profile..."
+                  placeholder="Add custom user profile..."
                   className="flex-1 px-4 py-2 border rounded"
                   value={customIcp}
                   onChange={(e) => setCustomIcp(e.target.value)}
@@ -201,7 +206,7 @@ export default function Hunt() {
                   onClick={() => {
                     if (customIcp.trim()) {
                       setIcps((prev) => [...prev, customIcp.trim()]);
-                      setSelectedIcps((prev) => [...prev, customIcp.trim()]); // ✅ pre-check it
+                      setSelectedIcps((prev) => [...prev, customIcp.trim()]);
                       setCustomIcp("");
                     }
                   }}

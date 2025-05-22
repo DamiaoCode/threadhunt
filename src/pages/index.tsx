@@ -290,7 +290,7 @@ export default function Home() {
                 className="mt-auto bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition"
                 onClick={handlePro}
               >
-                Upgrade Now
+                Become a Hunter!
               </button>
             </div>
           </div>

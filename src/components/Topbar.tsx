@@ -1,18 +1,22 @@
 import React from "react";
 import { useRouter } from "next/router";
-import supabase from "@/lib/supabase"; // ✅ importa o client
+import { useEffect, useState } from "react";
+import supabase from "@/lib/supabase";
+import useUserProfile from "@/hooks/useUserProfile";
+import PlanOverlay from "@/components/PlanOverlay";
 
-type TopbarProps = {
-  userEmail?: string;
-  plan?: string;
-};
-
-export default function Topbar({ userEmail = "", plan = "Free" }: TopbarProps) {
+export default function Topbar() {
   const router = useRouter();
+  const { userEmail, plan, updatePlan } = useUserProfile();
+  const [showPlanOverlay, setShowPlanOverlay] = useState(false);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/login");
+  };
+
+  const handleUpgradeToStarter = async () => {
+    await updatePlan("Starter");
   };
 
   return (
@@ -24,9 +28,12 @@ export default function Topbar({ userEmail = "", plan = "Free" }: TopbarProps) {
         ThreadHunt
       </h1>
       <div className="flex items-center gap-4">
-        <span className="px-3 py-1 text-sm bg-gray-100 border rounded-full text-gray-600">
+        <button
+          onClick={handleUpgradeToStarter}
+          className="px-3 py-1 text-sm bg-gray-100 border rounded-full text-gray-600 hover:bg-gray-200 transition"
+        >
           {plan}
-        </span>
+        </button>
         <span className="text-sm text-gray-700">{userEmail}</span>
         <button
           onClick={handleLogout}
@@ -35,6 +42,46 @@ export default function Topbar({ userEmail = "", plan = "Free" }: TopbarProps) {
           Sign Out
         </button>
       </div>
+      {showPlanOverlay && (
+        <div className="fixed inset-0 z-50">
+          <PlanOverlay
+            onStarter={async () => {
+              const normalizedPlan = plan?.toLowerCase();
+
+              if (normalizedPlan === "starter") {
+                // ⚡ Já é Starter — apenas fechar overlay
+                setShowPlanOverlay(false);
+                return;
+              }
+
+              await supabase
+                .from("profiles")
+                .update({ plan: "Starter" })
+                .eq("user_id", user.id);
+
+              setPlan("Starter");
+              setShowPlanOverlay(false);
+            }}
+            onPro={async () => {
+              const normalizedPlan = plan?.toLowerCase();
+
+              if (normalizedPlan === "pro") {
+                // ⚡ Já é Pro — apenas fechar overlay
+                setShowPlanOverlay(false);
+                return;
+              }
+
+              await supabase
+                .from("profiles")
+                .update({ plan: "Pro" })
+                .eq("user_id", user.id);
+
+              setPlan("Pro");
+              setShowPlanOverlay(false);
+            }}
+          />
+        </div>
+      )}
     </header>
   );
 }

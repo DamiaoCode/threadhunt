@@ -1,19 +1,34 @@
-// pages/api/process-discovery.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { scrapeSites } from "@/lib/scrapeSites";
-import supabase from "@/lib/supabase";
+import { getServiceSupabaseClient } from "@/lib/getServiceSupabaseClient";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
   const { id, name, description, query_icp } = req.body;
-  
 
   if (!id || !name || !description || !Array.isArray(query_icp)) {
     return res.status(400).json({ error: "Missing project fields" });
   }
 
-  console.log("🚀 Starting discovery for:", id);
+  const supabase = getServiceSupabaseClient(req, res);
+
+  // 👉 Já usa cookie/token do request
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user?.id) {
+    console.error("❌ Auth failed", authError?.message);
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const user_id = user.id;
+  console.log("🆔 Authenticated user:", user_id);
+  console.log("🚀 Starting discovery for project ID:", id);
 
   // 1. Generate queries
   const queryRes = await fetch(`${req.headers.origin}/api/generate-queries`, {
@@ -21,6 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ title: name, description, icps: query_icp }),
   });
+
   const { queries } = await queryRes.json();
   console.log("📥 Queries received:", queries);
 
@@ -28,54 +44,46 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const scraped = await scrapeSites(queries);
   console.log("🔎 Total scraped results:", scraped.length);
 
-  // 3. Filter Twitter profiles as potential competitors
+  // 3. Extract Twitter competitors
   const competitors = scraped.filter(
     (item) => item.site === "Twitter" && /^https:\/\/twitter\.com\/[^/]+$/.test(item.url)
   );
+  const filteredResults = scraped.filter((item) => !competitors.includes(item));
 
-  const filteredResults = scraped.filter(
-    (item) => !(item.site === "Twitter" && /^https:\/\/twitter\.com\/[^/]+$/.test(item.url))
-  );
-
-  console.log(`🧑‍💼 Found ${competitors.length} potential competitors (Twitter profiles)`);
-  console.log(`🔍 Proceeding to rank ${filteredResults.length} remaining results`);
+  console.log(`🧑‍💼 Twitter competitors: ${competitors.length}`);
+  console.log(`🔍 Proceeding to rank ${filteredResults.length} results`);
 
   // 4. Rank links
   const rankRes = await fetch(`${req.headers.origin}/api/rank-links`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      results: filteredResults,
-      name,
-      description,
-      query_icp,
-    }),
+    body: JSON.stringify({ results: filteredResults, name, description, query_icp }),
   });
 
   const { ranked } = await rankRes.json();
   console.log("🏆 Ranked results:", ranked.length);
 
-  // 5. Save to Supabase
-  const { user_id } = req.body;
-  if (!user_id) return res.status(400).json({ error: "Missing user_id" });
+  // 5. Update project
+  const { data: updateData, error: updateError } = await supabase
+    .from("projects")
+    .update({
+      discovery_results: ranked,
+      possible_competitors: competitors,
+    })
+    .eq("id", id)
+    .eq("user_id", user_id)
+    .select();
 
+  if (updateError) {
+    console.error("❌ Failed to save to Supabase", updateError);
+    return res.status(500).json({ error: "Failed to update project", details: updateError });
+  }
 
-  const { error } = await supabase
-  .from("projects")
-  .update({
-    discovery_results: ranked,
-    possible_competitors: competitors,
-  })
-  .eq("id", id)
-  .eq("user_id", user_id); // ✅ agora é seguro!
-
-
-
-  if (error) {
-    console.error("❌ Failed to save to Supabase", error.message);
-    return res.status(500).json({ error: "Failed to save to Supabase" });
+  if (!updateData || updateData.length === 0) {
+    console.warn("⚠️ No rows updated — RLS may be blocking update");
+    return res.status(404).json({ error: "No matching project found" });
   }
 
   console.log("✅ Saved discovery + competitors for project", id);
-  res.status(200).json({ success: true });
+  return res.status(200).json({ success: true });
 }
