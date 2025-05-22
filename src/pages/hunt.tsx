@@ -47,7 +47,15 @@ export default function Hunt() {
     setGenerating(false);
   };
   const handleContinue = async () => {
-    if (!user) return;
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      console.error("❌ Failed to get current user");
+      return;
+    }
 
     const { data, error } = await supabase
       .from("projects")
@@ -55,21 +63,21 @@ export default function Hunt() {
         {
           name: title,
           description,
-          user_id: user.id,
+          user_id: user.id, // ← garantidamente o mesmo que auth.uid()
           query_icp: selectedIcps,
         },
       ])
       .select()
-      .single(); // get inserted project
+      .single();
 
     if (error) {
       console.error("Erro ao guardar projeto:", error.message);
       return;
     }
 
-    // 👇 Trigger async discovery pipeline
+    // Trigger discovery pipeline
     try {
-      fetch("/api/process-discovery", {
+      await fetch("/api/process-discovery", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -77,19 +85,15 @@ export default function Hunt() {
           name: title,
           description,
           query_icp: selectedIcps,
+          user_id: user.id, // 👈 AQUI!
         }),
-      })
-        .then(() => {
-          console.log("✅ Discovery task launched");
-        })
-        .catch((err) => {
-          console.error("❌ Discovery API failed", err);
-        });
+      });
+      console.log("✅ Discovery task launched");
     } catch (err) {
-      console.error("Discovery population failed:", err);
+      console.error("❌ Discovery API failed", err);
     }
 
-    // ✅ Redirect user to view their project
+    // Redirect
     router.push(`/project/${data.id}`);
   };
 

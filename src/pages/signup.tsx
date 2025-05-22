@@ -41,6 +41,13 @@ export default function Signup() {
   const router = useRouter();
 
   useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        router.push("/dashboard");
+      }
+    };
+    checkSession();
     const handleNavClick = (e: MouseEvent) => {
       const anchor = (e.target as HTMLElement).closest(
         "a[href^='#']"

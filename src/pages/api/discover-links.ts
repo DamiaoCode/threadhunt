@@ -10,6 +10,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== "POST") return res.status(405).end();
 
   const { projectId, queries, description } = req.body;
+  const { data: sessionData } = await supabase.auth.getSession();
+  const userId = sessionData?.session?.user.id; 
 
   if (!queries || !Array.isArray(queries) || !projectId || !description) {
     return res.status(400).json({ error: "Missing queries, description or projectId" });
@@ -112,7 +114,9 @@ Return ONLY a valid JSON object inside a markdown code block like this:
     const { error } = await supabase
       .from("projects")
       .update({ discovery_results: parsedJson })
-      .eq("id", projectId);
+      .eq("id", projectId)
+      .eq("user_id", userId); // ✅ NECESSÁRIO com RLS
+
 
     if (error) {
       console.error("❌ Supabase update error:", error);

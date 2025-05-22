@@ -117,10 +117,14 @@ Respond ONLY with valid JSON like this:
 
     const parsedJson = JSON.parse(rawJson);
 
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData?.session?.user.id;
+
     const { error } = await supabase
       .from("projects")
       .update({ discovery_results: parsedJson })
-      .eq("id", projectId);
+      .eq("id", projectId)
+      .eq("user_id", userId);
 
     if (error) {
       console.error("❌ Supabase update error:", error);

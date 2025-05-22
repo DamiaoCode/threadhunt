@@ -38,7 +38,10 @@ export default function ProjectPage() {
         if (error) {
           console.error("Error fetching project:", error.message);
         } else {
-          setProject(data);
+          setProject({
+            ...data,
+            possible_competitors: data.possible_competitors || [],
+          });
         }
 
         setLoading(false);
@@ -133,62 +136,64 @@ export default function ProjectPage() {
         </div>
 
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-9 gap-6">
-          {project.possible_competitors.map((comp: any, idx: number) => {
-            const handle = comp.url
-              .split("twitter.com/")[1]
-              ?.replace(/\/$/, "");
+          {(project.possible_competitors || []).map(
+            (comp: any, idx: number) => {
+              const handle = comp.url
+                .split("twitter.com/")[1]
+                ?.replace(/\/$/, "");
 
-            return (
-              <div
-                key={idx}
-                className="relative flex flex-col items-center text-center opacity-0 animate-fade-in-down"
-                style={{ animationDelay: `${idx * 50}ms` }}
-              >
-                {/* 3-dots Button */}
-                <button
-                  onClick={() =>
-                    setMenuOpenIdx((prev) => (prev === idx ? null : idx))
-                  }
-                  className="absolute top-0 right-0 text-gray-400 hover:text-gray-600 text-sm"
-                  title="Options"
+              return (
+                <div
+                  key={idx}
+                  className="relative flex flex-col items-center text-center opacity-0 animate-fade-in-down"
+                  style={{ animationDelay: `${idx * 50}ms` }}
                 >
-                  ⋮
-                </button>
-
-                {/* Popover Menu */}
-                {menuOpenIdx === idx && (
-                  <div
-                    ref={menuRef} // 👈 apply here
-                    className="absolute top-6 right-0 z-20 bg-white border rounded shadow text-xs"
+                  {/* 3-dots Button */}
+                  <button
+                    onClick={() =>
+                      setMenuOpenIdx((prev) => (prev === idx ? null : idx))
+                    }
+                    className="absolute top-0 right-0 text-gray-400 hover:text-gray-600 text-sm"
+                    title="Options"
                   >
-                    <button
-                      onClick={() => handleDeleteCompetitor(idx)}
-                      className="block w-full px-3 py-1 text-left hover:bg-red-50 text-red-600"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                )}
+                    ⋮
+                  </button>
 
-                {/* Profile Card */}
-                <a
-                  href={comp.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex flex-col items-center"
-                >
-                  <img
-                    src={`https://unavatar.io/twitter/${handle}`}
-                    alt={handle}
-                    className="w-12 h-12 rounded-full mb-1 object-cover"
-                  />
-                  <p className="text-xs text-gray-700 truncate max-w-[80px]">
-                    @{handle}
-                  </p>
-                </a>
-              </div>
-            );
-          })}
+                  {/* Popover Menu */}
+                  {menuOpenIdx === idx && (
+                    <div
+                      ref={menuRef} // 👈 apply here
+                      className="absolute top-6 right-0 z-20 bg-white border rounded shadow text-xs"
+                    >
+                      <button
+                        onClick={() => handleDeleteCompetitor(idx)}
+                        className="block w-full px-3 py-1 text-left hover:bg-red-50 text-red-600"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Profile Card */}
+                  <a
+                    href={comp.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex flex-col items-center"
+                  >
+                    <img
+                      src={`https://unavatar.io/twitter/${handle}`}
+                      alt={handle}
+                      className="w-12 h-12 rounded-full mb-1 object-cover"
+                    />
+                    <p className="text-xs text-gray-700 truncate max-w-[80px]">
+                      @{handle}
+                    </p>
+                  </a>
+                </div>
+              );
+            }
+          )}
         </div>
 
         <div>

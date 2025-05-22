@@ -1,5 +1,6 @@
 import React from "react";
 import { useRouter } from "next/router";
+import supabase from "@/lib/supabase"; // ✅ importa o client
 
 type TopbarProps = {
   userEmail?: string;
@@ -7,7 +8,12 @@ type TopbarProps = {
 };
 
 export default function Topbar({ userEmail = "", plan = "Free" }: TopbarProps) {
-  const router = useRouter(); // 👈 define o router aqui
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
 
   return (
     <header className="w-full px-6 py-4 flex items-center justify-between border-b bg-white shadow-sm">
@@ -22,6 +28,12 @@ export default function Topbar({ userEmail = "", plan = "Free" }: TopbarProps) {
           {plan}
         </span>
         <span className="text-sm text-gray-700">{userEmail}</span>
+        <button
+          onClick={handleLogout}
+          className="text-sm text-red-600 hover:underline"
+        >
+          Sign Out
+        </button>
       </div>
     </header>
   );

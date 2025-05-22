@@ -7,6 +7,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   const { id, name, description, query_icp } = req.body;
+  
 
   if (!id || !name || !description || !Array.isArray(query_icp)) {
     return res.status(400).json({ error: "Missing project fields" });
@@ -55,13 +56,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   console.log("🏆 Ranked results:", ranked.length);
 
   // 5. Save to Supabase
+  const { user_id } = req.body;
+  if (!user_id) return res.status(400).json({ error: "Missing user_id" });
+
+
   const { error } = await supabase
-    .from("projects")
-    .update({
-      discovery_results: ranked,
-      possible_competitors: competitors,
-    })
-    .eq("id", id);
+  .from("projects")
+  .update({
+    discovery_results: ranked,
+    possible_competitors: competitors,
+  })
+  .eq("id", id)
+  .eq("user_id", user_id); // ✅ agora é seguro!
+
+
 
   if (error) {
     console.error("❌ Failed to save to Supabase", error.message);
