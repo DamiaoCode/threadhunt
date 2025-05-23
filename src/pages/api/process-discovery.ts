@@ -15,7 +15,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const supabase = getServiceSupabaseClient(req, res);
 
-  // 👉 Já usa cookie/token do request
   const {
     data: { user },
     error: authError,
@@ -38,29 +37,62 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   });
 
   const { queries } = await queryRes.json();
+  if (!Array.isArray(queries) || queries.length === 0) {
+    return res.status(400).json({ error: "Failed to generate queries" });
+  }
+
   console.log("📥 Queries received:", queries);
 
   // 2. Scrape platforms
   const scraped = await scrapeSites(queries);
   console.log("🔎 Total scraped results:", scraped.length);
 
+  if (scraped.length === 0) {
+    return res.status(400).json({ error: "No scraped results found" });
+  }
+
   // 3. Extract Twitter competitors
   const competitors = scraped.filter(
     (item) => item.site === "Twitter" && /^https:\/\/twitter\.com\/[^/]+$/.test(item.url)
   );
+
   const filteredResults = scraped.filter((item) => !competitors.includes(item));
 
+  // ✅ Deduplicar por URL (reforço, mesmo após o scrape)
+  const uniqueResults = Array.from(
+    new Map(filteredResults.map(item => [item.url, item])).values()
+  );
+
+  // ✅ Limitar para 100 links para ranking
+  const slicedResults = uniqueResults.slice(0, 100);
+
   console.log(`🧑‍💼 Twitter competitors: ${competitors.length}`);
-  console.log(`🔍 Proceeding to rank ${filteredResults.length} results`);
+  console.log(`🔍 Proceeding to rank ${slicedResults.length} results`);
 
   // 4. Rank links
   const rankRes = await fetch(`${req.headers.origin}/api/rank-links`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ results: filteredResults, name, description, query_icp }),
+    body: JSON.stringify({
+      results: slicedResults,
+      name,
+      description,
+      query_icp,
+    }),
   });
 
+  if (!rankRes.ok) {
+    const errorText = await rankRes.text();
+    console.error("❌ Rank API failed", errorText);
+    return res.status(500).json({ error: "Failed to rank links", details: errorText });
+  }
+
   const { ranked } = await rankRes.json();
+
+  if (!Array.isArray(ranked)) {
+    return res.status(500).json({ error: "Invalid ranked data returned" });
+  }
+
   console.log("🏆 Ranked results:", ranked.length);
 
   // 5. Update project

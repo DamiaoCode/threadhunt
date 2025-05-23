@@ -7,24 +7,33 @@ export async function scrapeSites(queries: string[]) {
     const reddit = await searchReddit(query);
     console.log(`🟥 Reddit: found ${reddit.length} results`);
 
-    // const twitter = await searchSerper(query, "twitter");
-    // console.log(`🟦 Twitter: found ${twitter.length} results`);
+    const twitter = await searchSerper(query, "twitter");
+    console.log(`🟦 Twitter: found ${twitter.length} results`);
 
-    // const quora = await searchSerper(query, "quora");
-    // console.log(`🟫 Quora: found ${quora.length} results`);
+    const quora = await searchSerper(query, "quora");
+    console.log(`🟫 Quora: found ${quora.length} results`);
 
-    // allResults.push(...reddit, ...twitter, ...quora);
+    allResults.push(...reddit, ...twitter, ...quora);
     allResults.push(...reddit); // Apenas resultados do Reddit por agora
   }
 
-  console.log(`✅ Total combined results: ${allResults.length}`);
-  return allResults;
+  // ✅ Deduplicar por URL
+  const uniqueResults = Array.from(
+    new Map(
+      allResults
+        .filter(item => item?.url?.startsWith("http"))
+        .map(item => [item.url, item])
+    ).values()
+  );
+
+  console.log(`✅ Total unique results: ${uniqueResults.length}`);
+  return uniqueResults;
 }
 
 // Reddit
 async function searchReddit(query: string) {
   try {
-    const res = await fetch(`https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&limit=5`);
+    const res = await fetch(`https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&limit=10&sort=top&t=month`);
     const json = await res.json();
 
     return json.data.children.map((item: any) => ({
@@ -39,7 +48,7 @@ async function searchReddit(query: string) {
   }
 }
 
-/*
+
 // Serper API for Twitter or Quora
 async function searchSerper(query: string, platform: "twitter" | "quora") {
   try {
@@ -53,6 +62,7 @@ async function searchSerper(query: string, platform: "twitter" | "quora") {
         q: `${query} site:${platform}.com`,
         gl: "us",
         hl: "en",
+        tbs: "qdr:m"
       }),
     });
 
@@ -70,4 +80,4 @@ async function searchSerper(query: string, platform: "twitter" | "quora") {
     return [];
   }
 }
-*/
+

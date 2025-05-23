@@ -9,7 +9,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: "Missing or invalid results array" });
   }
 
-  const sliced = results.slice(0, 50); // Keep small for better focus and lower token usage
+  // ✅ Deduplicar por URL e filtrar válidos
+  const uniqueResults = Array.from(
+    new Map(results.map(item => [item.url, item])).values()
+  ).filter(item => item?.url?.startsWith("http"));
+
+  // ✅ Agrupar por site (só para stats ou se quiseres logar depois)
+  const counts = {
+    Reddit: uniqueResults.filter(r => r.site === "Reddit").length,
+    Twitter: uniqueResults.filter(r => r.site === "Twitter").length,
+    Quora: uniqueResults.filter(r => r.site === "Quora").length,
+  };
+  console.log("🔢 Post counts by site:", counts);
 
   const prompt = `
 You're helping a startup evaluate online discussions to identify those that are most relevant for customer discovery and early traction.
@@ -18,22 +29,23 @@ The startup is building: "${name}"
 Description: "${description}"  
 Target audience: ${JSON.stringify(query_icp)}
 
-Given the following list of forum posts (each with site, title, summary, and URL), pick the **top 30 posts** that would be **most valuable for this startup to engage with** — based on their relevance to the product and its audience.
+Given the following list of forum posts (each with site, title, summary, and URL), pick the **top 50 posts** that would be **most valuable for this startup to engage with** — based on their relevance to the product and its audience.
 
 Prioritize discussions where the startup can learn about users' problems, validate their solution, or connect with potential users.
 
-⚠️ Please ensure source diversity: aim for a **balanced mix** of results from Reddit, Twitter, and Quora (roughly 1/3 each) if relevant posts are available.
-
-Return only a plain JSON array like:
+⚠️ Requirements:
+- Ensure **source diversity**: aim for a balanced mix of Reddit, Twitter, and Quora posts — even if there are more from one source, try to represent all three as equally as possible.
+- Avoid **duplicate URLs**.
+- Return a valid JSON array of objects like:
 [
   { "ranking": 1, "site": "Reddit", "url": "https://..." },
   ...
 ]
+No explanations, just the array.
 
 Forum posts:
-${JSON.stringify(sliced, null, 2)}
+${JSON.stringify(uniqueResults, null, 2)}
 `;
-
 
   try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -54,8 +66,6 @@ ${JSON.stringify(sliced, null, 2)}
       return res.status(500).json({ error: "OpenAI API error" });
     }
 
-    console.log("📝 Prompt token length (chars):", prompt.length);
-
     const json = await response.json();
     const content = json.choices?.[0]?.message?.content || "[]";
 
@@ -69,7 +79,12 @@ ${JSON.stringify(sliced, null, 2)}
       return res.status(500).json({ error: "Failed to parse OpenAI response" });
     }
 
-    res.status(200).json({ ranked });
+    // ✅ Deduplicação final
+    const dedupedRanked = Array.from(
+      new Map(ranked.map(item => [item.url, item])).values()
+    ).filter(item => item?.url?.startsWith("http"));
+
+    res.status(200).json({ ranked: dedupedRanked });
   } catch (err) {
     console.error("❌ Ranking failed:", err);
     res.status(500).json({ error: "Ranking request failed" });

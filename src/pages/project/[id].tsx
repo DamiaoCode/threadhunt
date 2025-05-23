@@ -177,19 +177,34 @@ export default function ProjectPage() {
           <h2 className="text-xl font-semibold mb-1">Possible Competitors</h2>
         </div>
 
-        <div className="relative min-h-[180px]">
+        <div className="relative min-h-[180px] overflow-hidden rounded-xl">
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-9 gap-6">
             {(project.possible_competitors || []).map(
               (comp: any, idx: number) => {
                 const handle = comp.url
                   .split("twitter.com/")[1]
                   ?.replace(/\/$/, "");
+                const truncateHandle = (handle: string, max: number) => {
+                  return handle.length > max
+                    ? handle.slice(0, max - 1) + "…"
+                    : handle;
+                };
+
                 return (
                   <div
                     key={idx}
                     className="relative flex flex-col items-center text-center opacity-0 animate-fade-in-down"
                     style={{ animationDelay: `${idx * 50}ms` }}
                   >
+                    {plan === "pro" && (
+                      <button
+                        onClick={() => handleDeleteCompetitor(idx)}
+                        className="absolute -top-1 -right-1 z-10 bg-white text-red-500 border border-gray-300 rounded-full w-5 h-5 text-xs flex items-center justify-center hover:bg-red-100 transition"
+                        title="Remove competitor"
+                      >
+                        ×
+                      </button>
+                    )}
                     <a
                       href={comp.url}
                       target="_blank"
@@ -201,8 +216,12 @@ export default function ProjectPage() {
                         alt={handle}
                         className="w-12 h-12 rounded-full mb-1 object-cover"
                       />
-                      <p className="text-xs text-gray-700 truncate max-w-[80px]">
-                        @{handle}
+                      <p
+                        className="text-xs text-gray-700 truncate max-w-[110px] sm:max-w-[130px] md:max-w-[160px]"
+                        title={handle}
+                      >
+                        @{truncateHandle(handle, 8)}{" "}
+                        {/* Ajusta o número conforme o layout */}
                       </p>
                     </a>
                   </div>
@@ -212,8 +231,8 @@ export default function ProjectPage() {
           </div>
 
           {plan === "starter" && (
-            <div className="absolute inset-0 z-20 backdrop-blur-sm bg-white/60 flex items-center justify-center rounded-xl">
-              <div className=" rounded-xl px-6 py-4 text-center space-y-2">
+            <div className="absolute inset-0 z-30 backdrop-blur-sm bg-white/60 flex items-center justify-center rounded-xl">
+              <div className="rounded-xl px-6 py-4 text-center space-y-2">
                 <div className="text-3xl">😕</div>
                 <h3 className="text-lg font-semibold text-gray-800">
                   You're not a real hunter yet!
@@ -275,7 +294,7 @@ export default function ProjectPage() {
                         href={item.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline truncate overflow-hidden whitespace-nowrap block max-w-[200px] sm:max-w-[200px] md:max-w-[400px] lg:max-w-[700px]"
+                        className="text-blue-600 hover:underline truncate overflow-hidden whitespace-nowrap block max-w-[200px] sm:max-w-[200px] md:max-w-[400px] lg:max-w-[600px]"
                         title={item.url}
                       >
                         {item.url}
@@ -299,39 +318,21 @@ export default function ProjectPage() {
       {showPlanOverlay && (
         <div className="fixed inset-0 z-50">
           <PlanOverlay
-            onStarter={async () => {
-              const normalizedPlan = plan?.toLowerCase();
+            onStarter={() => setShowPlanOverlay(false)}
+            onPro={async (priceId) => {
+              const projectId = project.id; // ← OK
+              const res = await fetch("/api/create-checkout-session", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ priceId, userId: user?.id, projectId }),
+              });
 
-              if (normalizedPlan === "starter") {
-                // ⚡ Já é Starter — apenas fechar overlay
-                setShowPlanOverlay(false);
-                return;
+              const data = await res.json();
+              if (data.url) {
+                window.location.href = data.url;
+              } else {
+                alert("Erro ao redirecionar para pagamento.");
               }
-
-              await supabase
-                .from("profiles")
-                .update({ plan: "Starter" })
-                .eq("user_id", user.id);
-
-              setPlan("Starter");
-              setShowPlanOverlay(false);
-            }}
-            onPro={async () => {
-              const normalizedPlan = plan?.toLowerCase();
-
-              if (normalizedPlan === "pro") {
-                // ⚡ Já é Pro — apenas fechar overlay
-                setShowPlanOverlay(false);
-                return;
-              }
-
-              await supabase
-                .from("profiles")
-                .update({ plan: "Pro" })
-                .eq("user_id", user.id);
-
-              setPlan("Pro");
-              setShowPlanOverlay(false);
             }}
           />
         </div>

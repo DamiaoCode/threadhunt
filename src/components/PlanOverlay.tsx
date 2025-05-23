@@ -1,14 +1,17 @@
-// components/PlanOverlay.tsx
-import { useRouter } from "next/router";
+import { useState } from "react";
 
 export default function PlanOverlay({
   onStarter,
   onPro,
 }: {
   onStarter: () => void;
-  onPro: () => void;
+  onPro: (priceId: string) => void;
 }) {
-  const router = useRouter();
+  const [showProOptions, setShowProOptions] = useState(false);
+
+  // Os teus price IDs reais aqui
+  const monthlyPriceId = "price_1RRGEaB0U9ZOpxhjme50ThWb"; // substitui pelo real
+  const yearlyPriceId = "price_1RRGEaB0U9ZOpxhj3yMIvwLD"; // substitui pelo real
 
   return (
     <div className="absolute inset-0 bg-white/95 backdrop-blur-lg z-50 flex items-center justify-center">
@@ -39,7 +42,7 @@ export default function PlanOverlay({
           </div>
 
           {/* Pro Plan */}
-          <div className="bg-zinc-100 border-2 border-black rounded-xl shadow-lg p-6 flex flex-col transform md:scale-105">
+          <div className="bg-zinc-100 border-2 border-black rounded-xl shadow-lg p-6 flex flex-col transform md:scale-105 relative">
             <h3 className="text-xl font-semibold mb-2">Pro</h3>
             <p className="text-2xl font-bold mb-1">
               €19<span className="text-sm font-normal"> /mo</span>
@@ -51,12 +54,30 @@ export default function PlanOverlay({
               <li>✅ CSV export</li>
               <li>✅ Email support</li>
             </ul>
-            <button
-              className="mt-auto bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition"
-              onClick={onPro}
-            >
-              Upgrade Now
-            </button>
+
+            {!showProOptions ? (
+              <button
+                className="mt-auto bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition"
+                onClick={() => setShowProOptions(true)}
+              >
+                Upgrade Now
+              </button>
+            ) : (
+              <div className="mt-auto space-y-2">
+                <button
+                  className="w-full bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition"
+                  onClick={() => onPro(monthlyPriceId)}
+                >
+                  €19 / month
+                </button>
+                <button
+                  className="w-full bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition"
+                  onClick={() => onPro(yearlyPriceId)}
+                >
+                  €199 / year
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
