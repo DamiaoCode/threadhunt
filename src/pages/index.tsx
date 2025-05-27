@@ -72,7 +72,7 @@ export default function Home() {
       <header className="fixed top-0 left-0 w-full z-50 backdrop-blur bg-white/60 dark:bg-black/30 border-b border-gray-200 dark:border-gray-800">
         <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
           <span className="font-bold text-lg">ThreadHunt</span>
-          <nav className="space-x-6 text-sm sm:text-base">
+          <nav className="space-x-6 text-sm sm:text-base flex items-center">
             <a href="#features" className="hover:underline">
               Features
             </a>
@@ -84,6 +84,12 @@ export default function Home() {
             </a>
             <a href="#pricing" className="hover:underline">
               Pricing
+            </a>
+            <a
+              href="/login"
+              className="ml-4 px-4 py-2 rounded bg-gray-900 text-white hover:bg-grey-700 transition text-sm"
+            >
+              Log In
             </a>
           </nav>
         </div>

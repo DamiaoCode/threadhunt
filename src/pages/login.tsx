@@ -40,14 +40,7 @@ export default function Login() {
   const router = useRouter();
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        router.push("/dashboard");
-      }
-    };
-    checkSession();
-
+    // Removed session check to always allow login page access
     const handleNavClick = (e: MouseEvent) => {
       const anchor = (e.target as HTMLElement).closest(
         "a[href^='#']"

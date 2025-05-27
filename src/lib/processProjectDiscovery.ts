@@ -25,8 +25,8 @@ export async function processProjectDiscovery(project: {
   const { queries } = await queryRes.json();
   console.log("📥 Queries received:", queries);
 
-  // 2. Scrape platforms
-  const scraped = await scrapeSites(queries);
+  // 2. Scrape platforms (now passes project.id for original_query save)
+  const scraped = await scrapeSites(queries, project.id);
   console.log("🔎 Total scraped results:", scraped.length);
 
   // 3. Rank links
